@@ -1,0 +1,10 @@
+[package]
+name = "my_project"
+
+[[bin]]
+name = "my_project"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28.1"
+
