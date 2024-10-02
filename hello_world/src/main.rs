@@ -1,3 +1,5 @@
+mod santa;
+
 extern crate crossterm;
 
 use crossterm::style::{SetForegroundColor, Stylize};
@@ -9,6 +11,7 @@ use std::time::Instant;
 use time::Duration;
 use crossterm::event::{read, DisableMouseCapture, EnableMouseCapture};
 use event::Event;
+use crate::santa::SANTA_ASCII;
 
 fn delta_time(current_time: &mut Instant) -> f64 {
     let new_time = Instant::now();
@@ -36,27 +39,6 @@ impl Cell {
         Cell { x, y, c, color }
     }
 }
-
-const SANTA: &str = r#"
-                    _...
-              o_.-"`    `\
-       .--.  _ `'-._.-'""-;     _
-     .'    \`_\_  {_.-a"a-}  _ / \
-   _/     .-'  '. {c-._o_.){\|`  |
-  (@`-._ /       \{    ^  } \\ _/
-   `~\  '-._      /'.     }  \}  .-.
-     |>:<   '-.__/   '._,} \_/  / ())
-     |     >:<   `'---. ____'-.|(`"`
-     \            >:<  \\_\\_\ | ;
-      \                 \\-{}-\/  \
-       \                 '._\\'   /)
-        '.                       /(
-          `-._ _____ _ _____ __.'\ \
-            / \     / \     / \   \ \
-         _.'/^\'._.'/^\'._.'/^\'.__) \
-     ,=='  `---`   '---'   '---'      )
-     `"""""""""""""""""""""""""""""""`
-"#;
 
 fn main() {
     let (width, height) = terminal::size().unwrap();
@@ -98,7 +80,7 @@ fn main() {
     let mut dt;
     let mut current_time = Instant::now();
     let mut mouse_position = (0, 0);
-
+    let mut mouse_down = false;
 
     loop {
         dt = delta_time(&mut current_time);
@@ -113,20 +95,9 @@ fn main() {
         // draw_sine_wave(&mut screen_buffer, width, height, phase);
         draw_santa(&mut screen_buffer, width, height);
         draw_snow_flakes(&mut screen_buffer, width, height, phase, dt, &mut snow_flakes);
-        draw_question(&mut screen_buffer, width, height, mouse_position);
+        draw_question(&mut screen_buffer, width, height, mouse_position, mouse_down);
         draw_ground(&mut screen_buffer, width, height);
-
-        let mouse_pos_str = format!("Mouse: ({}, {})", mouse_position.0, mouse_position.1);
-        for (i, c) in mouse_pos_str.chars().enumerate() {
-            let index = (0 * width + i as u16) as usize;
-            screen_buffer[index].c = c;
-        }
-
-        let fps_str = format!("FPS: {:.2}", 1.0 / dt);
-        for (i, c) in fps_str.chars().enumerate() {
-            let index = (1 * width + i as u16) as usize;
-            screen_buffer[index].c = c;
-        }
+        draw_debug_info(&mut screen_buffer, width, height, mouse_position, mouse_down, dt);
 
         // render screen buffer cells
         for cell in screen_buffer.iter() {
@@ -170,7 +141,10 @@ fn main() {
             }
             if let Event::Mouse(event) = event {
                 if event.kind == event::MouseEventKind::Down(event::MouseButton::Left) {
-                    mouse_position = (event.column, event.row);
+                    mouse_down = true;
+                }
+                if event.kind == event::MouseEventKind::Up(event::MouseButton::Left) {
+                    mouse_down = false;
                 }
                 if event.kind == event::MouseEventKind::Moved {
                     mouse_position = (event.column, event.row);
@@ -197,6 +171,26 @@ fn draw_dots(stdout: &mut Stdout, width: u16, height: u16) {
                 style::PrintStyledContent("·".grey())
             ).unwrap();
         }
+    }
+}
+
+fn draw_debug_info(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, mouse_position: (u16, u16), mouse_down: bool, dt: f64) {
+    let fps_str = format!("FPS: {:.2}", 1.0 / dt);
+    for (i, c) in fps_str.chars().enumerate() {
+        let index = (0 * width + i as u16) as usize;
+        screen_buffer[index].c = c;
+    }
+
+    let mouse_pos_str = format!("Mouse: ({}, {})", mouse_position.0, mouse_position.1);
+    for (i, c) in mouse_pos_str.chars().enumerate() {
+        let index = (1 * width + i as u16) as usize;
+        screen_buffer[index].c = c;
+    }
+
+    let mouse_down_str = format!("Mouse Down: {}", mouse_down);
+    for (i, c) in mouse_down_str.chars().enumerate() {
+        let index = (2 * width + i as u16) as usize;
+        screen_buffer[index].c = c;
     }
 }
 
@@ -238,7 +232,7 @@ fn draw_snow_flakes(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, phas
 }
 
 fn draw_santa(screen_buffer: &mut Vec<Cell>, width: u16, height: u16) {
-    let lines = SANTA.lines();
+    let lines = SANTA_ASCII.lines();
     let x = 2;
     let offset = height - 1 - lines.clone().count() as u16;
 
@@ -254,16 +248,26 @@ fn draw_santa(screen_buffer: &mut Vec<Cell>, width: u16, height: u16) {
     }
 }
 
-fn draw_question(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, mouse_position: (u16, u16)) {
+fn draw_question(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, mouse_position: (u16, u16), mouse_down: bool) { {
     let question = "What is the answer to life, the universe, and everything?";
-    draw_text_box(screen_buffer, width, height, question, 0, -5, (0, 0));
+    draw_text_box(screen_buffer, width, height, question, 0, -5, (0, 0), false);
 
-    draw_text_box(screen_buffer, width, height, "42", -20, 0, mouse_position);
-    draw_text_box(screen_buffer, width, height, "24", 0, 0, mouse_position);
-    draw_text_box(screen_buffer, width, height, "69", 20, 0, mouse_position);
+    let hover1 = draw_text_box(screen_buffer, width, height, "42", -20, 0, mouse_position, mouse_down);
+    let hover2 = draw_text_box(screen_buffer, width, height, "24", 0, 0, mouse_position, mouse_down);
+    let hover3 = draw_text_box(screen_buffer, width, height, "69", 20, 0, mouse_position, mouse_down);
+
+    let correct = hover1 && mouse_down;
+    let wrong1 = hover2 && mouse_down;
+    let wrong2 = hover3 && mouse_down;
+
+    if correct {
+        draw_text_box(screen_buffer, width, height, "Correct!", 0, 5, (0, 0), false);
+    } else if wrong1 || wrong2 {
+        draw_text_box(screen_buffer, width, height, "Wrong!", 0, 5, (0, 0), false);
+    }
 }
 
-fn draw_text_box(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, q: &str, x_offset: i16, y_offset: i16, mouse_position: (u16, u16)) {
+fn draw_text_box(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, q: &str, x_offset: i16, y_offset: i16, mouse_position: (u16, u16), mouse_down: bool) -> bool{
     let question = q;
     let x_origin = ((width as i16 - question.len() as i16) / 2 + x_offset) as u16;
     let y_origin = (height as i16 / 2 + y_offset) as u16;
@@ -277,16 +281,26 @@ fn draw_text_box(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, q: &str
         b: 255,
     };
 
-    // set color if mouse_position is within the text box
+    let mut is_hovered = false;
     if mouse_position.0 >= x_origin - 3 &&
         mouse_position.0 <= x_origin + question.len() as u16 + 2 &&
         mouse_position.1 >= y_origin - 1 &&
         mouse_position.1 <= y_origin + 1 {
-        color = style::Color::Rgb {
-            r: 255,
-            g: 0,
-            b: 0,
-        };
+
+        if mouse_down {
+            color = style::Color::Rgb {
+                r: 0,
+                g: 255,
+                b: 0,
+            };
+        } else {
+            color = style::Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 0,
+            };
+        }
+        is_hovered = true;
     }
 
     for i in 0..3 {
@@ -333,4 +347,7 @@ fn draw_text_box(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, q: &str
         screen_buffer[index].c = c;
         screen_buffer[index].color = color;
     }
+
+    is_hovered
+}
 }
