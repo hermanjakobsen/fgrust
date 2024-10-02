@@ -50,7 +50,14 @@ fn main() {
 
     let width = (width - 1).clamp(0, 200);
     let height = 30;
+
     let mut stdout = stdout();
+    let mut screen_buffer = vec![' '; (width * height) as usize];
+
+    // fill screen buffer with spaces
+    // for i in 0..screen_buffer.len() {
+    //     screen_buffer[i] = ' ' as usize;
+    // }
 
     enable_raw_mode().unwrap();
 
@@ -83,36 +90,62 @@ fn main() {
     loop {
         dt = delta_time(&mut current_time);
 
-        queue!(
-            stdout,
-            MoveTo(0, 0),
-            Clear(ClearType::All)
-        ).unwrap();
+        // queue!(
+        //     stdout,
+        //     MoveTo(0, 0),
+        //     Clear(ClearType::All)
+        // ).unwrap();
 
         phase += 1.0 * dt;
 
         // draw_sine_wave(&mut stdout, width, height, phase);
 
-        draw_santa(&mut stdout, width, height);
-        draw_snow_flakes(&mut stdout, width, height, phase, dt, &mut snow_flakes);
-        draw_ground(&mut stdout, width, height);
-        draw_question(&mut stdout, width, height, mouse_position);
+        draw_santa(&mut screen_buffer, width, height);
+        // draw_snow_flakes(&mut stdout, width, height, phase, dt, &mut snow_flakes);
+        draw_ground(&mut screen_buffer, width, height);
+        // draw_question(&mut stdout, width, height, mouse_position);
 
-        queue!(
-            stdout,
-            MoveTo(0, 0),
-            style::PrintStyledContent(format!("Mouse: ({}, {})", mouse_position.0, mouse_position.1).stylize())
-        ).unwrap();
+        // draw screen buffer
+        for i in 0..height {
+            for j in 0..width {
+                let index = (i * width + j) as usize;
+                let c = screen_buffer[index];
 
-        queue!(
-            stdout,
-            MoveTo(0, 1),
-            style::PrintStyledContent(format!("FPS: {:.2}", 1.0 / dt).stylize())
-        ).unwrap();
+                queue!(
+                    stdout,
+                    MoveTo(j, i),
+                    style::PrintStyledContent(c.white())
+                ).unwrap();
+            }
+        }
+
+        // queue!(
+        //     stdout,
+        //     MoveTo(0, 0),
+        //     style::PrintStyledContent(format!("Mouse: ({}, {})", mouse_position.0, mouse_position.1).stylize())
+        // ).unwrap();
+        // render mouse pos to screen buffer
+        let mouse_pos_str = format!("Mouse: ({}, {})", mouse_position.0, mouse_position.1);
+        for (i, c) in mouse_pos_str.chars().enumerate() {
+            let index = (0 * width + i as u16) as usize;
+            screen_buffer[index] = c;
+        }
+
+        // queue!(
+        //     stdout,
+        //     MoveTo(0, 1),
+        //     style::PrintStyledContent(format!("FPS: {:.2}", 1.0 / dt).stylize())
+        // ).unwrap();
+        // render fps to screen buffer
+        let fps_str = format!("FPS: {:.2}", 1.0 / dt);
+        for (i, c) in fps_str.chars().enumerate() {
+            let index = (1 * width + i as u16) as usize;
+            screen_buffer[index] = c;
+        }
 
         stdout.flush().unwrap();
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(16));
 
         if event::poll(Duration::from_millis(0)).unwrap() {
             let raw = read();
@@ -176,13 +209,11 @@ fn draw_sine_wave(stdout: &mut Stdout, width: u16, height: u16, phase: f64) {
     }
 }
 
-fn draw_ground(stdout: &mut Stdout, width: u16, height: u16) {
+fn draw_ground(screen_buffer: &mut Vec<char>, width: u16, height: u16) {
+    let ground = width * (height - 1);
+
     for i in 0..width {
-        queue!(
-            stdout,
-            MoveTo(i, height),
-            style::PrintStyledContent("█".white())
-        ).unwrap();
+        screen_buffer[(ground + i) as usize] = '█';
     }
 }
 
@@ -211,20 +242,27 @@ fn draw_snow_flakes(stdout: &mut Stdout, width: u16, height: u16, phase: f64, dt
     }
 }
 
-fn draw_santa(stdout: &mut Stdout, width: u16, height: u16) {
+fn draw_santa(screen_buffer: &mut Vec<char>, width: u16, height: u16) {
     let lines = SANTA.lines();
-    let offset = height - lines.clone().count() as u16;
+    let x = 2;
+    let offset = height - 1 - lines.clone().count() as u16;
 
     for (i, line) in lines.enumerate() {
         if line == " " {
             continue;
         }
 
-        queue!(
-            stdout,
-            MoveTo(5, offset + i as u16),
-            style::PrintStyledContent(line.white())
-        ).unwrap();
+
+        for (j, c) in line.chars().enumerate() {
+            let index = ((offset + i as u16) * width + x + j as u16) as usize;
+            screen_buffer[index] = c;
+        }
+
+        // queue!(
+        //     stdout,
+        //     MoveTo(5, offset + i as u16),
+        //     style::PrintStyledContent(line.white())
+        // ).unwrap();
     }
 }
 
