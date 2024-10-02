@@ -256,14 +256,13 @@ fn draw_question(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, mouse_p
     let hover2 = draw_text_box(screen_buffer, width, height, "24", 0, 0, mouse_position, mouse_down);
     let hover3 = draw_text_box(screen_buffer, width, height, "69", 20, 0, mouse_position, mouse_down);
 
-    let correct = hover1 && mouse_down;
-    let wrong1 = hover2 && mouse_down;
-    let wrong2 = hover3 && mouse_down;
-
-    if correct {
-        draw_text_box(screen_buffer, width, height, "Correct!", 0, 5, (0, 0), false);
-    } else if wrong1 || wrong2 {
-        draw_text_box(screen_buffer, width, height, "Wrong!", 0, 5, (0, 0), false);
+    if mouse_down {
+        let correct = hover1 && !hover2 && !hover3;
+        if correct {
+            draw_text_box(screen_buffer, width, height, "Correct!", 0, 5, (0, 0), false);
+        } else {
+            draw_text_box(screen_buffer, width, height, "Wrong!", 0, 5, (0, 0), false);
+        }
     }
 }
 
