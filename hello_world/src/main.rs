@@ -1,4 +1,4 @@
-mod santa;
+mod ascii;
 
 extern crate crossterm;
 
@@ -11,7 +11,6 @@ use std::time::Instant;
 use time::Duration;
 use crossterm::event::{read, DisableMouseCapture, EnableMouseCapture};
 use event::Event;
-use crate::santa::SANTA_ASCII;
 
 fn delta_time(current_time: &mut Instant) -> f64 {
     let new_time = Instant::now();
@@ -40,19 +39,18 @@ impl Cell {
     }
 }
 
-fn main() {
-    let (width, height) = terminal::size().unwrap();
+fn clamp_screen((width, height) : (u16, u16)) -> (u16, u16) {
+    let new_width = (width - 1).clamp(80, 200);
+    let new_height = height.clamp(40, 70);
+    (new_width, new_height)
+}
 
-    let width = (width - 1).clamp(0, 200);
-    let height = 30;
+fn main() {
+    let (mut width, mut height) = clamp_screen(terminal::size().unwrap());
+    let mut resize = true;
 
     let mut stdout = stdout();
     let mut screen_buffer: Vec<Cell> = Vec::new();
-    for i in 0..height {
-        for j in 0..width {
-            screen_buffer.push(Cell::new(j, i, ' ', style::Color::Rgb { r: 255, g: 255, b: 255 }));
-        }
-    }
 
     enable_raw_mode().unwrap();
 
@@ -83,6 +81,11 @@ fn main() {
     let mut mouse_down = false;
 
     loop {
+        if resize {
+            reset_screen_buffer(&mut screen_buffer, width, height);
+            resize = false;
+        }
+
         dt = delta_time(&mut current_time);
 
         phase += 1.0 * dt;
@@ -93,8 +96,9 @@ fn main() {
         }
 
         // draw_sine_wave(&mut screen_buffer, width, height, phase);
-        draw_santa(&mut screen_buffer, width, height);
+        draw_ascii(&mut screen_buffer, ascii::SANTA, width, height, 2, height - 20);
         draw_snow_flakes(&mut screen_buffer, width, height, phase, dt, &mut snow_flakes);
+        draw_ascii(&mut screen_buffer, ascii::SYSTEK, width, height, width / 2 - 32, 1);
         draw_question(&mut screen_buffer, width, height, mouse_position, mouse_down);
         draw_ground(&mut screen_buffer, width, height);
         draw_debug_info(&mut screen_buffer, width, height, mouse_position, mouse_down, dt);
@@ -150,6 +154,16 @@ fn main() {
                     mouse_position = (event.column, event.row);
                 }
             }
+
+            // if let Event::Resize(w, h) = event {
+            //     let (new_width, new_height) = clamp_screen((w, h));
+            //     if new_width != width || new_height != height {
+            //         width = new_width;
+            //         height = new_height;
+            //
+            //         resize = true;
+            //     }
+            // }
         }
     }
 
@@ -160,6 +174,15 @@ fn main() {
         terminal::LeaveAlternateScreen,
         DisableMouseCapture
     ).unwrap();
+}
+
+fn reset_screen_buffer(screen_buffer: &mut Vec<Cell>, width: u16, height: u16) {
+    screen_buffer.clear();
+    for i in 0..height {
+        for j in 0..width {
+            screen_buffer.push(Cell::new(j, i, ' ', style::Color::Rgb { r: 255, g: 255, b: 255 }));
+        }
+    }
 }
 
 fn draw_dots(stdout: &mut Stdout, width: u16, height: u16) {
@@ -221,7 +244,7 @@ fn draw_snow_flakes(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, phas
         let x = (snow_flake.x as u16).clamp(0, width-1);
         let y = snow_flake.y as u16;
 
-        if y >= height-2 {
+        if y >= height-1 {
             snow_flake.y = 0.0;
             snow_flake.x = (width - 1) as f64 * rand::random::<f64>();
         }
@@ -231,10 +254,8 @@ fn draw_snow_flakes(screen_buffer: &mut Vec<Cell>, width: u16, height: u16, phas
     }
 }
 
-fn draw_santa(screen_buffer: &mut Vec<Cell>, width: u16, height: u16) {
-    let lines = SANTA_ASCII.lines();
-    let x = 2;
-    let offset = height - 1 - lines.clone().count() as u16;
+fn draw_ascii(screen_buffer: &mut Vec<Cell>, ascii: &str, width: u16, height: u16, x: u16, y: u16) {
+    let lines = ascii.lines();
 
     for (i, line) in lines.enumerate() {
         for (j, c) in line.chars().enumerate() {
@@ -242,8 +263,10 @@ fn draw_santa(screen_buffer: &mut Vec<Cell>, width: u16, height: u16) {
                 continue;
             }
 
-            let index = ((offset + i as u16) * width + x + j as u16) as usize;
-            screen_buffer[index].c = c;
+            let index = ((y + i as u16) * width + x + j as u16) as usize;
+            if index < screen_buffer.len() {
+                screen_buffer[index].c = c;
+            }
         }
     }
 }
