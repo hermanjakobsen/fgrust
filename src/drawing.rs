@@ -135,45 +135,54 @@ pub fn draw_question(
     height: u16,
     mouse_position: (u16, u16),
     mouse_down: bool,
+    question: &str,
+    correct_answer: &str,
+    wrong_answers: &[&str],
+    correct_answer_position: usize,
 ) {
     {
-        let question = "What is the answer to life, the universe, and everything?";
         draw_text_box(screen_buffer, width, height, question, 0, -5, (0, 0), false);
+        let total_answers = wrong_answers.len() + 1;
 
-        let hover1 = draw_text_box(
-            screen_buffer,
-            width,
-            height,
-            "42",
-            -20,
-            0,
-            mouse_position,
-            mouse_down,
-        );
-        let hover2 = draw_text_box(
-            screen_buffer,
-            width,
-            height,
-            "24",
-            0,
-            0,
-            mouse_position,
-            mouse_down,
-        );
-        let hover3 = draw_text_box(
-            screen_buffer,
-            width,
-            height,
-            "69",
-            20,
-            0,
-            mouse_position,
-            mouse_down,
-        );
+        let mut incorrect_is_hovered: Vec<bool> = vec![];
+        let mut correct_answer_hovered: bool = false;
+
+        let delta_offset: i16 = 20;
+        let minimum_offset: i16 = (((total_answers - 1) as f32 / 2.0) * -delta_offset as f32) as i16;
+
+        let mut wrong_answer_iterator: usize = 0;
+
+        for i in 0..total_answers {
+            let x_offset = minimum_offset + delta_offset * i as i16;
+            if i == correct_answer_position {
+                correct_answer_hovered = draw_text_box(
+                    screen_buffer,
+                    width,
+                    height,
+                    correct_answer,
+                    x_offset,
+                    0,
+                    mouse_position,
+                    mouse_down,
+                );
+            } else {
+                incorrect_is_hovered.push(draw_text_box(
+                    screen_buffer,
+                    width,
+                    height,
+                    wrong_answers[wrong_answer_iterator],
+                    x_offset,
+                    0,
+                    mouse_position,
+                    mouse_down,
+                ));
+                wrong_answer_iterator += 1;
+            }
+        }
 
         if mouse_down {
-            let correct = hover1 && !hover2 && !hover3;
-            if correct {
+            let any_incorrect_is_hovered = incorrect_is_hovered.into_iter().any(|x| x);
+            if correct_answer_hovered && !any_incorrect_is_hovered {
                 draw_text_box(
                     screen_buffer,
                     width,
@@ -184,7 +193,7 @@ pub fn draw_question(
                     (0, 0),
                     false,
                 );
-            } else {
+            } else if any_incorrect_is_hovered {
                 draw_text_box(screen_buffer, width, height, "Wrong!", 0, 5, (0, 0), false);
             }
         }

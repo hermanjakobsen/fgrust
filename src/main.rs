@@ -17,6 +17,7 @@ use drawing::{
     reset_screen_buffer, Cell, Snowflake,
 };
 use event::Event;
+use rand::{thread_rng, Rng};
 use std::io::{stdout, Write};
 use std::time::Instant;
 use std::{thread, time};
@@ -66,6 +67,8 @@ fn main() {
     let mut mouse_position = (0, 0);
     let mut mouse_down = false;
 
+    let correct_answer_position = thread_rng().gen_range(0..3);
+
     loop {
         if resize {
             reset_screen_buffer(&mut screen_buffer, width, height);
@@ -111,6 +114,10 @@ fn main() {
             height,
             mouse_position,
             mouse_down,
+            "What is the answer to life, the universe, and everything?",
+            "42",
+            &["24", "69"],
+            correct_answer_position,
         );
         draw_ground(&mut screen_buffer, width, height);
         draw_debug_info(
