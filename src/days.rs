@@ -26,11 +26,12 @@ pub fn create_quiz_day<'a>(
     correct_answer: &'a str,
     wrong_answers: &'a [&'a str],
 ) -> QuizDay<'a> {
+    let number_of_answers = wrong_answers.len() + 1;
     QuizDay {
         question,
         correct_answer,
         wrong_answers,
-        correct_answer_position: thread_rng().gen_range(0..3),
+        correct_answer_position: thread_rng().gen_range(0..number_of_answers),
     }
 }
 
