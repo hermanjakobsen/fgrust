@@ -1,4 +1,5 @@
 mod ascii;
+mod days;
 mod drawing;
 
 extern crate crossterm;
@@ -12,12 +13,12 @@ use crossterm::{
     event, execute, queue, style, terminal,
     terminal::{Clear, ClearType},
 };
+use days::{create_quiz_day, CalendarDay, RunStatus};
 use drawing::{
-    clamp_screen, draw_ascii, draw_debug_info, draw_ground, draw_question, draw_snow_flakes,
+    clamp_screen, draw_ascii, draw_calendar, draw_debug_info, draw_ground, draw_snow_flakes,
     reset_screen_buffer, Cell, Snowflake,
 };
 use event::Event;
-use rand::{thread_rng, Rng};
 use std::io::{stdout, Write};
 use std::time::Instant;
 use std::{thread, time};
@@ -67,7 +68,16 @@ fn main() {
     let mut mouse_position = (0, 0);
     let mut mouse_down = false;
 
-    let correct_answer_position = thread_rng().gen_range(0..3);
+    let days = [
+        create_quiz_day(
+            "What is the answer to life, the universe, and everything?",
+            "42",
+            &["24", "69"],
+        ),
+        create_quiz_day("This is question 2", "42", &["99", "100", "wrong", "no"]),
+    ];
+    let mut day_to_run: Option<usize> = None;
+    let mut day_status: RunStatus = RunStatus::READY;
 
     loop {
         if resize {
@@ -108,17 +118,6 @@ fn main() {
             width / 2 - 32,
             1,
         );
-        draw_question(
-            &mut screen_buffer,
-            width,
-            height,
-            mouse_position,
-            mouse_down,
-            "What is the answer to life, the universe, and everything?",
-            "42",
-            &["24", "69"],
-            correct_answer_position,
-        );
         draw_ground(&mut screen_buffer, width, height);
         draw_debug_info(
             &mut screen_buffer,
@@ -127,7 +126,29 @@ fn main() {
             mouse_position,
             mouse_down,
             dt,
+            day_to_run,
+            &day_status,
         );
+
+        if day_to_run.is_none() || day_status == RunStatus::CORRECT {
+            day_to_run = draw_calendar(
+                &mut screen_buffer,
+                width,
+                height,
+                mouse_position,
+                mouse_down,
+                &days,
+            );
+            day_status = RunStatus::READY;
+        } else {
+            day_status = days.get(day_to_run.unwrap()).unwrap().tick(
+                &mut screen_buffer,
+                width,
+                height,
+                mouse_position,
+                mouse_down,
+            );
+        }
 
         // render screen buffer cells
         for cell in screen_buffer.iter() {
