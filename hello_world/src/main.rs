@@ -159,13 +159,15 @@ fn draw_snow_flakes(screen: &mut Screen, width: u16, height: u16, phase: f64, dt
         snow_flake.y += snow_flake.speed * dt;
         snow_flake.x += (phase + snow_flake.x / 10.0).sin() * 0.02;
 
-        let x = (snow_flake.x as u16).clamp(0, width - 1);
-        let y = (snow_flake.y as u16).clamp(0, height - 1);
+        let ground_level = height-1;
 
-        if y >= height - 1 {
+        if snow_flake.y as u16 >= ground_level {
             snow_flake.y = 0.0;
             snow_flake.x = (width - 1) as f64 * rand::random::<f64>();
         }
+
+        let x = (snow_flake.x as u16).clamp(0, width - 1);
+        let y = snow_flake.y as u16;
 
         screen.set_cell(x, y, snow_flake.sprite, style::Color::White);
     }

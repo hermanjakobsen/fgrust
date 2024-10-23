@@ -89,7 +89,7 @@ impl Screen {
     pub fn set_cell(&mut self, x: u16, y: u16, c: char, color: style::Color) {
         let index = self.xy_to_index(x, y);
 
-        if x >= self.width || x < 0 || y >= self.height || y < 0 {
+        if x >= self.width || y >= self.height {
             panic!("Attempted to set cell outside of screen bounds (x: {}, y: {}, i: {}, len: {})", x, y, index, self.buffer.len());
         }
 
