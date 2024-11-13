@@ -81,7 +81,25 @@ fn main() -> Result<(), Error> {
         snowflakes::draw(&mut screen, &snow_flakes);
         draw_ascii(&mut screen, ascii::SYSTEK, screen_width / 2 - 32, 1);
         draw_ground(&mut screen);
+        draw_debug_info(&mut screen, mouse_position, mouse_down, dt, day_to_run, &day_status);
 
+        if day_to_run.is_none() || day_status == RunStatus::CORRECT {
+            day_to_run = draw_calendar(
+                &mut screen,
+                mouse_position,
+                mouse_down,
+                &days,
+            );
+            day_status = RunStatus::READY;
+        } else {
+            day_status = days.get(day_to_run.unwrap()).unwrap().tick(
+                &mut screen,
+                mouse_position,
+                mouse_down,
+            );
+        }
+
+        screen.render();
 
         if event::poll(Duration::from_millis(0))? {
             let raw = read();
@@ -115,28 +133,7 @@ fn main() -> Result<(), Error> {
             }
         }
 
-
-        if day_to_run.is_none() || day_status == RunStatus::CORRECT {
-            day_to_run = draw_calendar(
-                &mut screen,
-                mouse_position,
-                mouse_down,
-                &days,
-            );
-            day_status = RunStatus::READY;
-        } else {
-            day_status = days.get(day_to_run.unwrap()).unwrap().tick(
-                &mut screen,
-                mouse_position,
-                mouse_down,
-            );
-        }
-
-        draw_debug_info(&mut screen, mouse_position, mouse_down, dt, day_to_run, &day_status);
-
-        screen.render();
         screen.cleanup()?;
-
     }
     Ok(())
 }
