@@ -4,6 +4,7 @@ mod screen;
 mod snowflakes;
 mod days;
 mod drawing;
+mod cannon_game;
 
 use crate::screen::Screen;
 use crossterm::event::read;
