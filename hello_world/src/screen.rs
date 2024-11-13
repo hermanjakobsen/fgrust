@@ -70,17 +70,18 @@ impl Screen {
         ).unwrap();
     }
 
-    pub fn cleanup(&mut self) {
-        disable_raw_mode().unwrap();
+    pub fn cleanup(&mut self) -> Result<(), std::io::Error> {
+        disable_raw_mode()?;
 
         queue!(
             self.stdout,
             cursor::Show,
             terminal::LeaveAlternateScreen,
             DisableMouseCapture
-        ).unwrap();
+        )?;
 
-        self.stdout.flush().unwrap();
+        self.stdout.flush()?;
+        Ok(())
     }
 
     pub fn clear(&mut self) {

@@ -99,7 +99,7 @@ fn main() -> Result<(), Error> {
         }
     }
 
-    screen.cleanup();
+    screen.cleanup()?;
     Ok(())
 }
 
