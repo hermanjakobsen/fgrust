@@ -1,14 +1,12 @@
 use rand::{thread_rng, Rng};
 
-use crate::drawing::{draw_question, Cell};
+use crate::{drawing::draw_question, screen::Screen};
 
 pub trait CalendarDay {
     // Return `true` if task succeeded, false if not
     fn tick(
         &self,
-        screen_buffer: &mut Vec<Cell>,
-        width: u16,
-        height: u16,
+        screen: &mut Screen,
         mouse_position: (u16, u16),
         mouse_down: bool,
     ) -> RunStatus;
@@ -46,17 +44,13 @@ pub struct QuizDay<'a> {
 impl CalendarDay for QuizDay<'_> {
     fn tick(
         &self,
-        screen_buffer: &mut Vec<Cell>,
-        width: u16,
-        height: u16,
+        screen: &mut Screen,
         mouse_position: (u16, u16),
         mouse_down: bool,
     ) -> RunStatus {
         let mut status = RunStatus::RUNNING;
         draw_question(
-            screen_buffer,
-            width,
-            height,
+            screen,
             mouse_position,
             mouse_down,
             self.question,

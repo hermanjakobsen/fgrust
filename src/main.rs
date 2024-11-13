@@ -1,72 +1,53 @@
+extern crate crossterm;
 mod ascii;
+mod screen;
+mod snowflakes;
 mod days;
 mod drawing;
 
-extern crate crossterm;
-
-use crossterm::event::{read, DisableMouseCapture, EnableMouseCapture};
-use crossterm::style::{SetForegroundColor, Stylize};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
-use crossterm::{
-    cursor,
-    cursor::MoveTo,
-    event, execute, queue, style, terminal,
-    terminal::{Clear, ClearType},
-};
-use days::{create_quiz_day, CalendarDay, RunStatus};
-use drawing::{
-    clamp_screen, draw_ascii, draw_calendar, draw_debug_info, draw_ground, draw_snow_flakes,
-    reset_screen_buffer, Cell, Snowflake,
-};
+use crate::screen::Screen;
+use crossterm::event::read;
+use crossterm::{event, terminal};
 use event::Event;
-use std::io::{stdout, Write};
+use std::io::{stdout, Error};
 use std::time::Instant;
-use std::{thread, time};
+use std::time;
 use time::Duration;
 
-fn delta_time(current_time: &mut Instant) -> f64 {
+use days::{create_quiz_day, CalendarDay, RunStatus};
+use drawing::{
+    draw_ascii, draw_calendar, draw_debug_info, draw_ground, 
+};
+
+fn delta_time(previous_time: &mut Instant) -> f64 {
     let new_time = Instant::now();
-    let dt = new_time.duration_since(*current_time).as_secs_f64();
-    *current_time = new_time;
+    let dt = new_time.duration_since(*previous_time).as_nanos() as f64 / 1_000_000_000.0;
+    *previous_time = new_time;
     dt
 }
 
-fn main() {
-    let (width, height) = clamp_screen(terminal::size().unwrap());
+struct Snowflake {
+    x: f64,
+    y: f64,
+    speed: f64,
+    sprite: char,
+}
+
+fn main() -> Result<(), Error> {
     let mut resize = true;
 
-    let mut stdout = stdout();
-    let mut screen_buffer: Vec<Cell> = Vec::new();
+    let mut screen = Screen::new(stdout(), terminal::size()?);
+    screen.init()?;
 
-    enable_raw_mode().unwrap();
-
-    execute!(
-        stdout,
-        terminal::EnterAlternateScreen,
-        cursor::Hide,
-        EnableMouseCapture,
-        Clear(ClearType::All)
-    )
-    .unwrap();
-
-    let snow_flake_sprites = vec!['*', '·', '•'];
-    let mut snow_flakes: Vec<Snowflake> = Vec::new();
-    for _ in 0..100 {
-        snow_flakes.push(Snowflake {
-            x: (width as f64 * rand::random::<f64>()).floor(),
-            y: ((height - 1) as f64 * rand::random::<f64>()).floor(),
-            speed: (rand::random::<f64>() * 0.5) + 2.8,
-            sprite: snow_flake_sprites
-                [(rand::random::<u16>() % snow_flake_sprites.len() as u16) as usize],
-        });
-    }
-
-    let mut phase = 0.0;
+    let mut snow_flakes: Vec<Snowflake> = snowflakes::create(screen.width(), screen.height());
 
     let mut dt;
-    let mut current_time = Instant::now();
+    let mut previous_time = Instant::now();
+
     let mut mouse_position = (0, 0);
     let mut mouse_down = false;
+    let mut phase = 0.0;
+
 
     let days = [
         create_quiz_day(
@@ -80,99 +61,35 @@ fn main() {
     let mut day_status: RunStatus = RunStatus::READY;
 
     loop {
+        dt = delta_time(&mut previous_time);
+
         if resize {
-            reset_screen_buffer(&mut screen_buffer, width, height);
+            screen.resize(terminal::size()?);
             resize = false;
+
+            snow_flakes = snowflakes::create(screen.width(), screen.height());
         }
 
-        dt = delta_time(&mut current_time);
+        phase += dt;
+        snowflakes::update(screen.width(), screen.height(), phase, dt, &mut snow_flakes);
 
-        phase += 1.0 * dt;
+        screen.clear();
+        let screen_height = screen.height();
+        let screen_width = screen.width();
+        draw_ascii(&mut screen, ascii::SANTA, 2, screen_height - 20);
+        snowflakes::draw(&mut screen, &snow_flakes);
+        draw_ascii(&mut screen, ascii::SYSTEK, screen_width / 2 - 32, 1);
+        draw_ground(&mut screen);
 
-        // clear screen buffer
-        for i in 0..screen_buffer.len() {
-            screen_buffer[i].c = ' ';
-        }
 
-        draw_ascii(
-            &mut screen_buffer,
-            ascii::SANTA,
-            width,
-            height,
-            2,
-            height - 20,
-        );
-        draw_snow_flakes(
-            &mut screen_buffer,
-            width,
-            height,
-            phase,
-            dt,
-            &mut snow_flakes,
-        );
-        draw_ascii(
-            &mut screen_buffer,
-            ascii::SYSTEK,
-            width,
-            height,
-            width / 2 - 32,
-            1,
-        );
-        draw_ground(&mut screen_buffer, width, height);
-        draw_debug_info(
-            &mut screen_buffer,
-            width,
-            height,
-            mouse_position,
-            mouse_down,
-            dt,
-            day_to_run,
-            &day_status,
-        );
-
-        if day_to_run.is_none() || day_status == RunStatus::CORRECT {
-            day_to_run = draw_calendar(
-                &mut screen_buffer,
-                width,
-                height,
-                mouse_position,
-                mouse_down,
-                &days,
-            );
-            day_status = RunStatus::READY;
-        } else {
-            day_status = days.get(day_to_run.unwrap()).unwrap().tick(
-                &mut screen_buffer,
-                width,
-                height,
-                mouse_position,
-                mouse_down,
-            );
-        }
-
-        // render screen buffer cells
-        for cell in screen_buffer.iter() {
-            queue!(
-                stdout,
-                MoveTo(cell.x, cell.y),
-                SetForegroundColor(cell.color),
-                style::PrintStyledContent(cell.c.stylize())
-            )
-            .unwrap();
-        }
-
-        stdout.flush().unwrap();
-
-        thread::sleep(Duration::from_millis(16));
-
-        if event::poll(Duration::from_millis(0)).unwrap() {
+        if event::poll(Duration::from_millis(0))? {
             let raw = read();
 
             if raw.is_err() {
                 continue;
             }
 
-            let event = raw.unwrap();
+            let event = raw?;
 
             if let Event::Key(event) = event {
                 if event.code == event::KeyCode::Char('q') {
@@ -191,15 +108,34 @@ fn main() {
                     mouse_position = (event.column, event.row);
                 }
             }
+
+            if let Event::Resize(_w, _h) = event {
+                resize = true;
+            }
         }
     }
 
-    disable_raw_mode().unwrap();
-    execute!(
-        stdout,
-        cursor::Show,
-        terminal::LeaveAlternateScreen,
-        DisableMouseCapture
-    )
-    .unwrap();
+
+        if day_to_run.is_none() || day_status == RunStatus::CORRECT {
+            day_to_run = draw_calendar(
+                &mut screen,
+                mouse_position,
+                mouse_down,
+                &days,
+            );
+            day_status = RunStatus::READY;
+        } else {
+            day_status = days.get(day_to_run.unwrap()).unwrap().tick(
+                &mut screen,
+                mouse_position,
+                mouse_down,
+            );
+        }
+
+        draw_debug_info(&mut screen, mouse_position, mouse_down, dt, day_to_run, &day_status);
+
+        screen.render();
+        screen.cleanup()?;
+
+        Ok(())
 }
