@@ -113,7 +113,6 @@ fn main() -> Result<(), Error> {
                 resize = true;
             }
         }
-    }
 
 
         if day_to_run.is_none() || day_status == RunStatus::CORRECT {
@@ -137,5 +136,6 @@ fn main() -> Result<(), Error> {
         screen.render();
         screen.cleanup()?;
 
-        Ok(())
+    }
+    Ok(())
 }
