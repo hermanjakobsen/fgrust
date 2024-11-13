@@ -1,6 +1,7 @@
 extern crate crossterm;
 mod ascii;
 mod screen;
+mod snowflakes;
 
 use crate::screen::Screen;
 use crossterm::event::read;
@@ -8,13 +9,13 @@ use crossterm::{event, style, terminal};
 use event::Event;
 use std::io::{stdout};
 use std::time::Instant;
-use std::{thread, time};
+use std::time;
 use time::Duration;
 
-fn delta_time(current_time: &mut Instant) -> f64 {
+fn delta_time(previous_time: &mut Instant) -> f64 {
     let new_time = Instant::now();
-    let dt = new_time.duration_since(*current_time).as_secs_f64();
-    *current_time = new_time;
+    let dt = new_time.duration_since(*previous_time).as_nanos() as f64 / 1_000_000_000.0;
+    *previous_time = new_time;
     dt
 }
 
@@ -25,58 +26,45 @@ struct Snowflake {
     sprite: char,
 }
 
-fn clamp_screen((width, height) : (u16, u16)) -> (u16, u16) {
-    let new_width = (width - 1).clamp(80, 200);
-    let new_height = height.clamp(40, 70);
-    (new_width, new_height)
-}
-
 fn main() {
-    let (mut width, mut height) = clamp_screen(terminal::size().unwrap());
     let mut resize = true;
 
-    let mut screen = Screen::new(stdout(), width, height);
+    let mut screen = Screen::new(stdout(), terminal::size().unwrap());
     screen.init();
 
-    let snow_flake_sprites = vec!['*', '·', '•'];
-    let mut snow_flakes: Vec<Snowflake> = Vec::new();
-    for _ in 0..100 {
-        snow_flakes.push(Snowflake {
-            x: (width as f64 * rand::random::<f64>()).floor(),
-            y: ((height-1) as f64 * rand::random::<f64>()).floor(),
-            speed: (rand::random::<f64>() * 0.5) + 0.4,
-            sprite: snow_flake_sprites[(rand::random::<u16>() % snow_flake_sprites.len() as u16) as usize],
-        });
-    }
-
-    let mut phase = 0.0;
+    let mut snow_flakes: Vec<Snowflake> = snowflakes::create(screen.width(), screen.height());
 
     let mut dt;
-    let mut current_time = Instant::now();
+    let mut previous_time = Instant::now();
+
     let mut mouse_position = (0, 0);
     let mut mouse_down = false;
+    let mut phase = 0.0;
 
     loop {
+        dt = delta_time(&mut previous_time);
+
         if resize {
-            screen.resize(width, height);
+            screen.resize(terminal::size().unwrap());
             resize = false;
+
+            snow_flakes = snowflakes::create(screen.width(), screen.height());
         }
 
-        dt = delta_time(&mut current_time);
-        phase += 1.0 * dt;
+        phase += dt;
+        snowflakes::update(screen.width(), screen.height(), phase, dt, &mut snow_flakes);
 
         screen.clear();
-
-        draw_ascii(&mut screen, ascii::SANTA, 2, height - 20);
-        draw_snow_flakes(&mut screen, width, height, phase, dt, &mut snow_flakes);
-        draw_ascii(&mut screen, ascii::SYSTEK, width / 2 - 32, 1);
-        draw_ground(&mut screen, width, height);
-        draw_question(&mut screen, width, height, mouse_position, mouse_down);
+        let screen_height = screen.height();
+        let screen_width = screen.width();
+        draw_ascii(&mut screen, ascii::SANTA, 2, screen_height - 20);
+        snowflakes::draw(&mut screen, &snow_flakes);
+        draw_ascii(&mut screen, ascii::SYSTEK, screen_width / 2 - 32, 1);
+        draw_ground(&mut screen);
+        draw_question(&mut screen, mouse_position, mouse_down);
         draw_debug_info(&mut screen, mouse_position, mouse_down, dt);
 
         screen.render();
-
-        thread::sleep(Duration::from_millis(16));
 
         if event::poll(Duration::from_millis(0)).unwrap() {
             let raw = read();
@@ -105,14 +93,8 @@ fn main() {
                 }
             }
 
-            if let Event::Resize(w, h) = event {
-                let (new_width, new_height) = clamp_screen((w, h));
-                if new_width != width || new_height != height {
-                    width = new_width;
-                    height = new_height;
-
-                    resize = true;
-                }
+            if let Event::Resize(_w, _h) = event {
+                resize = true;
             }
         }
     }
@@ -121,7 +103,7 @@ fn main() {
 }
 
 fn draw_debug_info(screen: &mut Screen, mouse_position: (u16, u16), mouse_down: bool, dt: f64) {
-    let fps_str = format!("FPS: {:.2}", 1.0 / dt);
+    let fps_str = format!("FPS: {:.0}", 1.0 / dt);
     for (i, c) in fps_str.chars().enumerate() {
         screen.set_cell(i as u16, 0, c, style::Color::White);
     }
@@ -148,28 +130,9 @@ fn draw_debug_info(screen: &mut Screen, mouse_position: (u16, u16), mouse_down: 
 //     }
 // }
 
-fn draw_ground(screen: &mut Screen, width: u16, height: u16) {
-    for i in 0..width {
-        screen.set_cell(i, height - 1, '█', style::Color::White);
-    }
-}
-
-fn draw_snow_flakes(screen: &mut Screen, width: u16, height: u16, phase: f64, dt: f64, snow_flakes: &mut Vec<Snowflake>) {
-    for snow_flake in snow_flakes.iter_mut() {
-        snow_flake.y += snow_flake.speed * dt;
-        snow_flake.x += (phase + snow_flake.x / 10.0).sin() * 0.02;
-
-        let ground_level = height-1;
-
-        if snow_flake.y as u16 >= ground_level {
-            snow_flake.y = 0.0;
-            snow_flake.x = (width - 1) as f64 * rand::random::<f64>();
-        }
-
-        let x = (snow_flake.x as u16).clamp(0, width - 1);
-        let y = snow_flake.y as u16;
-
-        screen.set_cell(x, y, snow_flake.sprite, style::Color::White);
+fn draw_ground(screen: &mut Screen) {
+    for i in 0..screen.width() {
+        screen.set_cell(i, screen.height() - 1, '█', style::Color::White);
     }
 }
 
@@ -187,7 +150,10 @@ fn draw_ascii(screen: &mut Screen, ascii: &str, x: u16, y: u16) {
     }
 }
 
-fn draw_question(screen: &mut Screen, width: u16, height: u16, mouse_position: (u16, u16), mouse_down: bool) {
+fn draw_question(screen: &mut Screen, mouse_position: (u16, u16), mouse_down: bool) {
+    let width = screen.width();
+    let height = screen.height();
+
     let question = "What is the answer to life, the universe, and everything?";
     draw_text_box(screen, width, height, question, 0, -5, (0, 0), false);
 
