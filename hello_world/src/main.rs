@@ -30,7 +30,7 @@ fn main() -> Result<(), Error> {
     let mut resize = true;
 
     let mut screen = Screen::new(stdout(), terminal::size()?);
-    screen.init();
+    screen.init()?;
 
     let mut snow_flakes: Vec<Snowflake> = snowflakes::create(screen.width(), screen.height());
 

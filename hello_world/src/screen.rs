@@ -58,8 +58,8 @@ impl Screen {
         self.height
     }
 
-    pub fn init(&mut self) {
-        enable_raw_mode().unwrap();
+    pub fn init(&mut self) -> Result<(), std::io::Error> {
+        enable_raw_mode()?;
 
         queue!(
             self.stdout,
@@ -67,7 +67,8 @@ impl Screen {
             cursor::Hide,
             EnableMouseCapture,
             Clear(ClearType::All)
-        ).unwrap();
+        )?;
+        Ok(())
     }
 
     pub fn cleanup(&mut self) -> Result<(), std::io::Error> {
