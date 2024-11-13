@@ -132,8 +132,8 @@ fn main() -> Result<(), Error> {
                 resize = true;
             }
         }
-
-        screen.cleanup()?;
     }
+
+    screen.cleanup()?;
     Ok(())
 }

@@ -165,13 +165,14 @@ fn draw_text_box(screen: &mut Screen, width: u16, height: u16, q: &str, x_offset
         }
     }
 
-    {
+    if y_origin > 0 {
         let line = &fancy_top_border;
         for (j, c) in line.chars().enumerate() {
             screen.set_cell(x_origin - 3 + j as u16, y_origin - 1, c, color);
         }
     }
 
+    if y_origin < height - 1
     {
         let line = &fancy_bottom_border;
         for (j, c) in line.chars().enumerate() {
@@ -179,11 +180,11 @@ fn draw_text_box(screen: &mut Screen, width: u16, height: u16, q: &str, x_offset
         }
     }
 
-    {
+    if x_origin > 3 {
         screen.set_cell(x_origin - 3, y_origin, '│', color);
     }
 
-    {
+    if x_origin + question.len() as u16 + 2 < width {
         screen.set_cell(x_origin + question.len() as u16 + 2, y_origin, '│', color);
     }
 
