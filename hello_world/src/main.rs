@@ -7,7 +7,7 @@ use crate::screen::Screen;
 use crossterm::event::read;
 use crossterm::{event, style, terminal};
 use event::Event;
-use std::io::{stdout};
+use std::io::{stdout, Error};
 use std::time::Instant;
 use std::time;
 use time::Duration;
@@ -26,10 +26,10 @@ struct Snowflake {
     sprite: char,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let mut resize = true;
 
-    let mut screen = Screen::new(stdout(), terminal::size().unwrap());
+    let mut screen = Screen::new(stdout(), terminal::size()?);
     screen.init();
 
     let mut snow_flakes: Vec<Snowflake> = snowflakes::create(screen.width(), screen.height());
@@ -45,7 +45,7 @@ fn main() {
         dt = delta_time(&mut previous_time);
 
         if resize {
-            screen.resize(terminal::size().unwrap());
+            screen.resize(terminal::size()?);
             resize = false;
 
             snow_flakes = snowflakes::create(screen.width(), screen.height());
@@ -66,14 +66,14 @@ fn main() {
 
         screen.render();
 
-        if event::poll(Duration::from_millis(0)).unwrap() {
+        if event::poll(Duration::from_millis(0))? {
             let raw = read();
 
             if raw.is_err() {
                 continue;
             }
 
-            let event = raw.unwrap();
+            let event = raw?;
 
             if let Event::Key(event) = event {
                 if event.code == event::KeyCode::Char('q') {
@@ -100,6 +100,7 @@ fn main() {
     }
 
     screen.cleanup();
+    Ok(())
 }
 
 fn draw_debug_info(screen: &mut Screen, mouse_position: (u16, u16), mouse_down: bool, dt: f64) {
