@@ -1,6 +1,7 @@
 mod ascii;
 mod days;
 mod drawing;
+mod cannon_game;
 
 extern crate crossterm;
 
