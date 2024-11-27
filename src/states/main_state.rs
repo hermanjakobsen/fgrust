@@ -50,7 +50,6 @@ impl State for MainState {
         draw_ground(screen);
         
         if let Some(ref day) = draw_calendar(screen, input.mouse_position(), input.is_mouse_up(MouseButton::Left)) {
-            // self.next = Some(day.clone());
             let next: Option<Box<dyn State>> =  match day {
                 1 => Some(Box::new(states::day1_state::Day1State::new())),
                 2 => Some(Box::new(states::day2_state::Day2State::new())),

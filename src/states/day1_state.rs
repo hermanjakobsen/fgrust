@@ -48,7 +48,7 @@ impl State for Day1State {
 
     fn update(&mut self, screen: &mut Screen, input: &mut Input, dt: f64) -> Option<Box<dyn State>> {
 
-        self.phase = (self.phase + dt) % 2.0;
+        self.phase += dt;
 
         draw_ascii(screen, TREE_FIREPLACE, screen.width() - 43, (screen.height() as i16 - 40).clamp(0, screen.height() as i16) as u16);
         draw_ascii(screen, PRESENT, 12, screen.height() - 26);
