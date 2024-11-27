@@ -5,6 +5,7 @@ use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::style::{SetForegroundColor, Stylize};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
 
+#[derive(Clone)]
 pub struct Cell {
     pub rune: char,
     pub color: style::Color,
@@ -56,6 +57,10 @@ impl Screen {
 
     pub fn height(&self) -> u16 {
         self.height
+    }
+    
+    pub fn clone_buffer(&self) -> Vec<Cell> {
+        self.buffer.clone()
     }
 
     pub fn init(&mut self) -> Result<(), std::io::Error> {
@@ -119,7 +124,7 @@ impl Screen {
         let index = self.xy_to_index(x, y);
 
         if x >= self.width || y >= self.height {
-            panic!("Attempted to set cell outside of screen bounds (x: {}, y: {}, i: {}, len: {})", x, y, index, self.buffer.len());
+            return;
         }
 
         if x >= self.real_width || y >= self.real_height {
