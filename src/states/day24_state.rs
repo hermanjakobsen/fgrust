@@ -2,7 +2,8 @@ use crate::input::{Input, MouseButton};
 use crate::screen::Screen;
 use crate::state_machine::State;
 use rand::{thread_rng, Rng};
-use crate::drawing::{draw_ascii, draw_question};
+use crate::drawing::{draw_ascii, draw_question, draw_text_box};
+use crate::input;
 use crate::states::main_state::MainState;
 use crate::states::transition_state::TransitionState;
 
@@ -18,24 +19,23 @@ impl Day24State {
 }
 
 impl State for Day24State {
+    fn enter(&mut self, screen: &mut Screen, input: &mut Input) {  }
 
     fn update(&mut self, screen: &mut Screen, input: &mut Input, dt: f64) -> Option<Box<dyn State>> {
 
-        self.phase = (self.phase + dt) % 2.0;
-        draw_ascii(screen, FATHER_CHRISTMAS, 12, screen.height() - 26);
-
+        draw_ascii(screen, FATHER_CHRISTMAS, 50, screen.height() - 51);
         draw_text_box(
             screen,
             screen.width(),
             screen.height(),
-            explanation1,
+            &self.title_text,
             0,
-            -16,
+            -25,
             (0, 0),
             false,
         );
 
-        if correct {
+        if input.is_key_up('q') {
             return Some(Box::new(TransitionState::new(Box::new(MainState::new()), None)));
         }
 
@@ -47,13 +47,6 @@ impl State for Day24State {
 }
 
 pub const FATHER_CHRISTMAS: &str = r#"
-=+++++====+++++++**++++++=+*#####*+#%%%%##%%%%##%###*****++*#%**#######*##%%%#+=+++**++****+***#####
-*+++===+++++++===+++*###*#%###**#####%#%##%#%%%%###%%%#****##%##%%%%%####%%**++*+#####***+++#%##*###
-###+====+****+*#**++++***#%%%%######***#*#%%%%#%%#%@%%%##*****##%%%%####%#%#*+*####***#####+++*##%##
-==++====++***+**+=+--=++***%%%%%%%%%##*+*#%%%%%%%##%%*++#%%*#%%##**#####%%%%%%%##**####%###*+++++*##
-#+=++====+++*#*++*####+-+*#*#%%%%#+***#*##%##**#%%*+*%%%**+*%%%%%###%%%%%%%%#%%%##%#%#%%%%%###**=+*#
-*+*+=====+*****++**##%##%*+*#**+=+%%#***=#@%%%*+#%%@#**+****++**%%%##%@@@%%**#%%#***###%%##%%###***#
-#***+==--=====++++*****#%%#=+#####******#*+%%%*==*#%%*#***+**##**######%%%%###%%%%#++*##+#%#*+*+*#%%
 %*++++=++#+-+==+====-=*####**+=+**+#*#%%#+*##%@@%###****+###***##%%%%%#%%%*#####%%#**##%#*##*#*+=+**
 **+-===+=+##+#+-+++===***+********##**###++==+#%%%#*#%%#*+++*****#**%%%%##*=#%@@*+**##%%@@@%***%##*=
 +=+++**++*+=**#%+=++==*==++==+#****#+=++*##*##**+=+==+==-==::=*+*#%%%%%%%##*=+*##**#***#%@@@@%#%%%%%
